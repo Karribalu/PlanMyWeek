@@ -1,0 +1,23 @@
+input DateRangeInput {
+  start: Date! # Inclusive
+  end: Date! # Inclusive
+}
+
+input LocationInput {
+  # Accept either a free-text name OR explicit coordinates.
+  name: String
+  latitude: Latitude
+  longitude: Longitude
+  # Optional: allow forcing a timezone if the geocoder returns it.
+  timezone: String
+}
+
+type Location {
+  name: String
+  country: String
+  latitude: Latitude!
+  longitude: Longitude!
+  timezone: String!
+  # Confidence score or source (e.g. "geocoding") if you later integrate multiple providers.
+  source: String
+}

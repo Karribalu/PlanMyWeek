@@ -1,0 +1,22 @@
+enum ActivityKind {
+  SKIING
+  SURFING
+  OUTDOOR_SIGHTSEEING
+  INDOOR_SIGHTSEEING
+}
+
+type ActivityRanking {
+  activity: ActivityKind!
+  overallScore: Float!
+  daily: [DailyActivityScore!]!
+}
+
+type DailyActivityScore {
+  date: Date!
+  score: Float!
+  reasons: [String!]!
+}
+
+type RankedActivitiesResult {
+  activities: [ActivityRanking!]!
+}

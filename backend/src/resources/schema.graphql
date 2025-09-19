@@ -1,0 +1,24 @@
+type Query {
+  # Primary query: returns rankings for requested (or default) activities.
+  getRankedActivities(
+    location: LocationInput!
+    range: DateRangeInput
+    activities: [ActivityKind!]
+  ): RankedActivitiesResult!
+
+  # Optional: raw weather if the frontend wants to visualize charts.
+  getWeatherForecast(
+    location: LocationInput!
+    range: DateRangeInput
+  ): WeatherForecast!
+
+  # Optional: support typeahead location search (geocoding).
+  searchLocations(query: String!, limit: Int = 5): [Location!]!
+
+  # Debug / transparency: inspect how a single activity was scored.
+  getActivityScoreBreakdown(
+    activity: ActivityKind!
+    location: LocationInput!
+    range: DateRangeInput
+  ): ActivityRanking!
+}

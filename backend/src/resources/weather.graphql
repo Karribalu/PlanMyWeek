@@ -1,0 +1,19 @@
+type DailyWeather {
+  date: Date!
+  minTempC: Float
+  maxTempC: Float
+  snowfallCm: Float
+  precipitationMm: Float
+  windSpeedKph: Float
+  windGustKph: Float
+  waveHeightM: Float
+  cloudCoverPct: Int
+  sunshineHours: Float
+  humidityPct: Int
+  freezeLevelMeters: Int
+}
+
+type WeatherForecast {
+  generatedAt: DateTime!
+  provider: String!
+}
