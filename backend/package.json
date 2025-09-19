@@ -6,9 +6,15 @@
   "type": "module",
   "scripts": {
     "compile": "tsc",
+    "compile:watch": "tsc --watch",
     "postcompile": "mkdir -p dist/resources && cp -R src/resources/. dist/resources/",
-    "build": "npm run compile",
-    "start": "npm run build && node ./dist/index.js"
+    "copy-resources": "mkdir -p dist/resources && cp -R src/resources/. dist/resources/",
+    "copy-environments": "mkdir -p dist/environments && cp -R src/environments/. dist/environments/",
+    "build": "npm run compile && npm run copy-resources && npm run copy-environments",
+    "start": "npm run build && NODE_ENV=production node ./dist/index.js",
+    "start:dev": "npm run build && NODE_ENV=dev node ./dist/index.js",
+    "start:local": "npm run build && NODE_ENV=local node ./dist/index.js",
+    "dev": "npm run build && NODE_ENV=local concurrently \"npm run compile:watch\" \"npm run copy-resources\" \"nodemon --watch dist --exec 'NODE_ENV=local node ./dist/index.js'\""
   },
   "keywords": [],
   "author": "",
@@ -19,10 +25,12 @@
     "dotenv": "^17.2.2",
     "graphql": "^16.11.0",
     "graphql-scalars": "^1.24.2",
-    "openmeteo": "^1.2.0"
+    "openmeteo": "^1.2.0",
+    "ts-node": "^10.9.2"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
+    "nodemon": "^3.1.10",
     "typescript": "^5.9.2"
   }
 }

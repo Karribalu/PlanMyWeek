@@ -1,20 +1,38 @@
+import { config } from "dotenv";
+import { existsSync } from "fs";
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
-import { getWeatherForecast } from "./services/weather-service.js";
 import { gql } from "apollo-server-express";
 import { typeDefs as scalarTypeDefs } from "graphql-scalars";
+
+// Load environment variables based on NODE_ENV with fallback
+const environment = process.env.NODE_ENV || "local";
+const envFile = `./dist/environments/.env.${environment}`;
+const fallbackEnvFile = "./dist/environments/.env";
+
+// Try to load the environment-specific file first, fallback to base .env
+if (existsSync(envFile)) {
+  config({ path: envFile });
+  console.log(`Loaded environment configuration from: ${envFile}`);
+} else {
+  config({ path: fallbackEnvFile });
+  console.log(
+    `Environment file ${envFile} not found, loaded from: ${fallbackEnvFile}`
+  );
+}
+
+// Import location service AFTER environment variables are loaded
+import { getLocationService } from "./services/location-service.js";
 
 import { getAllGraphQLFiles } from "./services/utils.js";
 import { readFileSync } from "fs";
 const allGraphQLFiles = getAllGraphQLFiles();
-const customTypeDefs = allGraphQLFiles
-  .map((item) => {
-    console.log("Loading GraphQL schema file:", item);
-    return gql(readFileSync(item, "utf-8"));
-  })
-  .join("\n");
+const customTypeDefs = allGraphQLFiles.map((item) => {
+  console.log("Loading GraphQL schema file:", item);
+  return gql(readFileSync(item, "utf-8"));
+});
 
-const typeDefs = [...scalarTypeDefs, customTypeDefs];
+const typeDefs = [...scalarTypeDefs, ...customTypeDefs];
 
 // Resolvers define the technique for fetching the types defined in the
 // schema. This resolver retrieves books from the "books" array above.
@@ -28,57 +46,6 @@ const books = [
     author: "Paul Auster",
   },
 ];
-// Simple in-memory mock dataset for now. Replace with a real geocoding service later.
-const mockLocations = [
-  {
-    name: "New York City",
-    country: "US",
-    latitude: 40.7128,
-    longitude: -74.006,
-    timezone: "America/New_York",
-    source: "mock",
-  },
-  {
-    name: "Newark",
-    country: "US",
-    latitude: 40.7357,
-    longitude: -74.1724,
-    timezone: "America/New_York",
-    source: "mock",
-  },
-  {
-    name: "New Delhi",
-    country: "IN",
-    latitude: 28.6139,
-    longitude: 77.209,
-    timezone: "Asia/Kolkata",
-    source: "mock",
-  },
-  {
-    name: "Newcastle",
-    country: "GB",
-    latitude: 54.9783,
-    longitude: -1.6178,
-    timezone: "Europe/London",
-    source: "mock",
-  },
-  {
-    name: "New Orleans",
-    country: "US",
-    latitude: 29.9511,
-    longitude: -90.0715,
-    timezone: "America/Chicago",
-    source: "mock",
-  },
-  {
-    name: "Newport",
-    country: "US",
-    latitude: 41.4901,
-    longitude: -71.3128,
-    timezone: "America/New_York",
-    source: "mock",
-  },
-];
 
 const resolvers = {
   Query: {
@@ -86,11 +53,7 @@ const resolvers = {
       _: unknown,
       { query, limit }: { query: string; limit: number }
     ) => {
-      const q = query.trim().toLowerCase();
-      if (!q) return [];
-      return mockLocations
-        .filter((l) => l.name.toLowerCase().includes(q))
-        .slice(0, Math.min(limit ?? 5, 20));
+      return getLocationService().searchLocations(query, limit);
     },
   },
 };
