@@ -1,5 +1,9 @@
 # 🌤️ PlanMyWeek# Plan My Week
 
+## 📽️ Demo
+
+[Watch the demo video](demo/assignment-collinson.mov)
+
 **A weather-based activity ranking system that helps users discover the best outdoor activities based on 7-day weather forecasts.**This is a simple project which ranks activities based on weather forecast and user preferences to help plan a week of activities.
 
 Built for a technical interview assessment, this application demonstrates scalable architecture, code quality, and thoughtful technical decisions using React, Node.js, and GraphQL.## Features
