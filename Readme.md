@@ -1,5 +1,3 @@
-git clone <repository-url>
-
 # PlanMyWeek
 
 A small demo app that answers a simple question: "Given the weather over the next week, which outdoor (or fallback indoor) activity is likely to be the most fun each day?"
