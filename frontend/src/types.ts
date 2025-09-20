@@ -23,3 +23,15 @@ export interface RankedActivitiesResultUI {
   period: { start: string; end: string };
   location: { latitude: number; longitude: number };
 }
+
+// GraphQL query wiring types
+// Result shape for GET_RANKED_ACTIVITIES query
+export interface GetRankedActivitiesData {
+  getRankedActivities: RankedActivitiesResultUI;
+}
+
+// Variables for GET_RANKED_ACTIVITIES query
+export interface GetRankedActivitiesVars {
+  lat: number;
+  lng: number;
+}

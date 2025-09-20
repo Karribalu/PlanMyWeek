@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { useQuery } from "@apollo/client/react";
 import {
   Container,
   Typography,
@@ -15,16 +15,17 @@ import {
   Paper,
   Divider,
 } from "@mui/material";
-import type { RankedActivitiesResultUI, DailyActivityScoreUI } from "../types";
+import type {
+  DailyActivityScoreUI,
+  GetRankedActivitiesData,
+  GetRankedActivitiesVars,
+  ActivityRankingUI,
+} from "../types";
 import { GET_RANKED_ACTIVITIES } from "../graphql/queries";
 
 export function ActivityDetailsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [data, setData] = useState<RankedActivitiesResultUI | null>(null);
-  const [loading, setLoading] = useState(true); // Start with loading state
-  const [error, setError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   // Get data from URL params
   const activity = searchParams.get("activity");
@@ -33,47 +34,21 @@ export function ActivityDetailsPage() {
   const lng = searchParams.get("lng");
   const country = searchParams.get("country");
 
-  useEffect(() => {
-    if (!lat || !lng || !activity) {
-      setError("Missing required parameters");
-      setLoading(false);
-      return;
-    }
+  // Use Apollo Client useQuery hook
+  const { data, loading, error } = useQuery<
+    GetRankedActivitiesData,
+    GetRankedActivitiesVars
+  >(GET_RANKED_ACTIVITIES, {
+    variables: {
+      lat: lat ? parseFloat(lat) : 0,
+      lng: lng ? parseFloat(lng) : 0,
+    },
+    skip: !lat || !lng || !activity, // Skip query if required params are missing
+    errorPolicy: "all",
+  });
 
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        abortRef.current?.abort();
-        const controller = new AbortController();
-        abortRef.current = controller;
-
-        const resp = await fetch("http://localhost:8080/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: GET_RANKED_ACTIVITIES,
-            variables: { lat: parseFloat(lat), lng: parseFloat(lng) },
-          }),
-          signal: controller.signal,
-        });
-
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const json = await resp.json();
-        if (json.errors)
-          throw new Error(json.errors[0]?.message || "GraphQL error");
-        setData(json.data.getRankedActivities);
-      } catch (e: any) {
-        if (e.name !== "AbortError") {
-          setError(e.message);
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [lat, lng, activity]);
-
-  const activityData = data?.activities.find((a) => a.activity === activity);
+  const activityData: ActivityRankingUI | undefined =
+    data?.getRankedActivities?.activities.find((a) => a.activity === activity);
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "success";
@@ -128,7 +103,8 @@ export function ActivityDetailsPage() {
     );
   }
 
-  if (error) {
+  if (error || !lat || !lng || !activity) {
+    const errorMessage = error?.message || "Missing required parameters";
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
@@ -139,7 +115,7 @@ export function ActivityDetailsPage() {
             Activity Details
           </Typography>
         </Stack>
-        <Alert severity="error">{error}</Alert>
+        <Alert severity="error">{errorMessage}</Alert>
       </Container>
     );
   }

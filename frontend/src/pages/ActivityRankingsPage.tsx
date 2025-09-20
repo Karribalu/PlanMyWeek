@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { useQuery } from "@apollo/client/react";
 import {
   Container,
   Typography,
@@ -14,17 +15,17 @@ import {
   IconButton,
   Stack,
 } from "@mui/material";
-import type { RankedActivitiesResultUI, ActivityRankingUI } from "../types";
+import type {
+  ActivityRankingUI,
+  GetRankedActivitiesData,
+  GetRankedActivitiesVars,
+} from "../types";
 import { GET_RANKED_ACTIVITIES } from "../graphql/queries";
 
 export function ActivityRankingsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [data, setData] = useState<RankedActivitiesResultUI | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [navigating, setNavigating] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
 
   // Get location from URL params
   const locationName = searchParams.get("location");
@@ -32,44 +33,18 @@ export function ActivityRankingsPage() {
   const lng = searchParams.get("lng");
   const country = searchParams.get("country");
 
-  useEffect(() => {
-    if (!lat || !lng) {
-      setError("Missing location coordinates");
-      return;
-    }
-
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        abortRef.current?.abort();
-        const controller = new AbortController();
-        abortRef.current = controller;
-
-        const resp = await fetch("http://localhost:8080/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: GET_RANKED_ACTIVITIES,
-            variables: { lat: parseFloat(lat), lng: parseFloat(lng) },
-          }),
-          signal: controller.signal,
-        });
-
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const json = await resp.json();
-        if (json.errors)
-          throw new Error(json.errors[0]?.message || "GraphQL error");
-        setData(json.data.getRankedActivities);
-      } catch (e: any) {
-        if (e.name !== "AbortError") {
-          setError(e.message);
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [lat, lng]);
+  // Use Apollo Client useQuery hook
+  const { data, loading, error } = useQuery<
+    GetRankedActivitiesData,
+    GetRankedActivitiesVars
+  >(GET_RANKED_ACTIVITIES, {
+    variables: {
+      lat: lat ? parseFloat(lat) : 0,
+      lng: lng ? parseFloat(lng) : 0,
+    },
+    skip: !lat || !lng, // Skip query if required params are missing
+    errorPolicy: "all",
+  });
 
   const handleActivityClick = (activity: ActivityRankingUI) => {
     setNavigating(true);
@@ -117,7 +92,8 @@ export function ActivityRankingsPage() {
     );
   }
 
-  if (error) {
+  if (error || !lat || !lng) {
+    const errorMessage = error?.message || "Missing location coordinates";
     return (
       <Container maxWidth="md" sx={{ mt: 4 }}>
         <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
@@ -128,10 +104,12 @@ export function ActivityRankingsPage() {
             Activity Rankings
           </Typography>
         </Stack>
-        <Alert severity="error">{error}</Alert>
+        <Alert severity="error">{errorMessage}</Alert>
       </Container>
     );
   }
+
+  const rankedActivitiesData = data?.getRankedActivities;
 
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
@@ -150,17 +128,22 @@ export function ActivityRankingsPage() {
         </Box>
       </Stack>
 
-      {data && (
+      {rankedActivitiesData && (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Forecast period: {new Date(data.period.start).toLocaleDateString()}{" "}
-            - {new Date(data.period.end).toLocaleDateString()}
+            Forecast period:{" "}
+            {new Date(rankedActivitiesData.period.start).toLocaleDateString()} -{" "}
+            {new Date(rankedActivitiesData.period.end).toLocaleDateString()}
           </Typography>
 
           <Stack spacing={2}>
-            {data.activities
-              .sort((a, b) => b.overallScore - a.overallScore)
-              .map((activity) => (
+            {[...rankedActivitiesData.activities]
+              // Copy then sort to avoid mutating Apollo cached / readonly result objects
+              .sort(
+                (a: ActivityRankingUI, b: ActivityRankingUI) =>
+                  b.overallScore - a.overallScore
+              )
+              .map((activity: ActivityRankingUI) => (
                 <Card
                   key={activity.activity}
                   elevation={2}

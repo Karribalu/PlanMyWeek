@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { useLazyQuery } from "@apollo/client/react";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import type { LocationSuggestion } from "../types";
 import { SEARCH_LOCATIONS } from "../graphql/queries";
+
+interface SearchLocationsResult {
+  searchLocations?: LocationSuggestion[];
+}
 
 interface Props {
   onSelect?(loc: LocationSuggestion): void;
@@ -21,10 +26,28 @@ export function LocationSearch({
   const navigate = useNavigate();
   const [inputValue, setInputValue] = useState(selected?.name || "");
   const [options, setOptions] = useState<LocationSuggestion[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
+
+  // Use Apollo Client's useLazyQuery for on-demand search
+  const [searchLocations, { loading, error, data }] = useLazyQuery(
+    SEARCH_LOCATIONS,
+    { errorPolicy: "all" }
+  );
+
+  // React to data/error changes since newer useLazyQuery typings don't accept onCompleted/onError in options
+  useEffect(() => {
+    const d = data as unknown as SearchLocationsResult | undefined;
+    if (d?.searchLocations) {
+      setOptions(d.searchLocations);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    if (error) {
+      console.error("Search error:", error);
+      setOptions([]);
+    }
+  }, [error]);
 
   const handleLocationSelect = (location: LocationSuggestion) => {
     onSelect?.(location);
@@ -44,42 +67,18 @@ export function LocationSearch({
   useEffect(() => {
     if (!inputValue.trim()) {
       setOptions([]);
-      setError(null);
-      abortRef.current?.abort();
       return;
     }
+
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    debounceRef.current = window.setTimeout(async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        abortRef.current?.abort();
-        const controller = new AbortController();
-        abortRef.current = controller;
-        const resp = await fetch("http://localhost:8080/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: SEARCH_LOCATIONS,
-            variables: { q: inputValue },
-          }),
-          signal: controller.signal,
-        });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const json = await resp.json();
-        if (json.errors)
-          throw new Error(json.errors[0]?.message || "GraphQL error");
-        setOptions(json.data.searchLocations);
-      } catch (e: any) {
-        if (e.name !== "AbortError") setError(e.message);
-      } finally {
-        setLoading(false);
-      }
+    debounceRef.current = window.setTimeout(() => {
+      searchLocations({ variables: { q: inputValue } });
     }, 300);
+
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [inputValue]);
+  }, [inputValue, searchLocations]);
 
   useEffect(() => {
     if (selected?.name) setInputValue(selected.name);
@@ -105,7 +104,11 @@ export function LocationSearch({
       }}
       loading={loading}
       noOptionsText={
-        error ? `Error: ${error}` : inputValue ? "No matches" : "Type to search"
+        error
+          ? `Error: ${error.message}`
+          : inputValue
+          ? "No matches"
+          : "Type to search"
       }
       renderOption={(props, option) => (
         <Box
@@ -138,7 +141,7 @@ export function LocationSearch({
             ),
           }}
           error={!!error}
-          helperText={error ? error : " "}
+          helperText={error ? error.message : " "}
           sx={{
             "& .MuiOutlinedInput-root": {
               background: "#102830",
