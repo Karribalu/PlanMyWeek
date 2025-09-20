@@ -1,4 +1,4 @@
-# 🌤️ PlanMyWeek# Plan My Week
+# 🌤️ PlanMyWeek
 
 ## 📽️ Demo
 
