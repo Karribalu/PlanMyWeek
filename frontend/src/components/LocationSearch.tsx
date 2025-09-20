@@ -1,110 +1,131 @@
 import { useEffect, useRef, useState } from "react";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
+import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
 import type { LocationSuggestion } from "../types";
 import { SEARCH_LOCATIONS } from "../graphql/queries";
 
-interface LocationSearchProps {
-  onSelect(location: LocationSuggestion): void;
+interface Props {
+  onSelect(loc: LocationSuggestion): void;
   selected?: LocationSuggestion | null;
 }
 
-export function LocationSearch({ onSelect, selected }: LocationSearchProps) {
-  const [query, setQuery] = useState(selected?.name || "");
-  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+export function LocationSearch({ onSelect, selected }: Props) {
+  const [inputValue, setInputValue] = useState(selected?.name || "");
+  const [options, setOptions] = useState<LocationSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const debounceRef = useRef<number | null>(null);
 
-  // Expose query change when user types but only select on click
   useEffect(() => {
-    if (!query.trim()) {
-      setSuggestions([]);
+    if (!inputValue.trim()) {
+      setOptions([]);
+      setError(null);
+      abortRef.current?.abort();
       return;
     }
-    const timeout = setTimeout(() => {
-      (async () => {
-        try {
-          setLoading(true);
-          setError(null);
-          abortRef.current?.abort();
-          const controller = new AbortController();
-          abortRef.current = controller;
-          const resp = await fetch("http://localhost:8080/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              query: SEARCH_LOCATIONS,
-              variables: { q: query },
-            }),
-            signal: controller.signal,
-          });
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const json = await resp.json();
-          if (json.errors)
-            throw new Error(json.errors[0]?.message || "GraphQL error");
-          setSuggestions(json.data.searchLocations);
-        } catch (e: any) {
-          if (e.name !== "AbortError") {
-            setError(e.message);
-          }
-        } finally {
-          setLoading(false);
-        }
-      })();
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const resp = await fetch("http://localhost:8080/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: SEARCH_LOCATIONS,
+            variables: { q: inputValue },
+          }),
+          signal: controller.signal,
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const json = await resp.json();
+        if (json.errors)
+          throw new Error(json.errors[0]?.message || "GraphQL error");
+        setOptions(json.data.searchLocations);
+      } catch (e: any) {
+        if (e.name !== "AbortError") setError(e.message);
+      } finally {
+        setLoading(false);
+      }
     }, 300);
-    return () => clearTimeout(timeout);
-  }, [query]);
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, [inputValue]);
+
+  useEffect(() => {
+    if (selected?.name) setInputValue(selected.name);
+  }, [selected?.name]);
 
   return (
-    <div className="search-box" role="search">
-      <label htmlFor="location-input" className="visually-hidden">
-        Search location
-      </label>
-      <input
-        id="location-input"
-        type="text"
-        placeholder="Enter a location..."
-        autoFocus
-        value={query}
-        aria-autocomplete="list"
-        aria-controls={suggestions.length ? "location-suggestions" : undefined}
-        onChange={(e) => {
-          setQuery(e.target.value);
-        }}
-      />
-      {loading && (
-        <div className="status" role="status">
-          Searching...
-        </div>
+    <Autocomplete
+      autoComplete
+      includeInputInList
+      filterOptions={(x) => x}
+      options={options}
+      getOptionLabel={(o) => o.name}
+      value={selected || null}
+      inputValue={inputValue}
+      onInputChange={(_, val, reason) => {
+        if (reason === "input") setInputValue(val);
+        if (reason === "clear") setInputValue("");
+      }}
+      onChange={(_, val) => {
+        if (val) {
+          onSelect(val);
+          setInputValue(val.name);
+        }
+      }}
+      loading={loading}
+      noOptionsText={
+        error ? `Error: ${error}` : inputValue ? "No matches" : "Type to search"
+      }
+      renderOption={(props, option) => (
+        <Box
+          component="li"
+          {...props}
+          key={`${option.name}-${option.latitude}-${option.longitude}`}
+        >
+          <Box sx={{ fontWeight: 600 }}>{option.name}</Box>
+          {option.country && (
+            <Box component="span" sx={{ ml: 1, fontSize: 12, opacity: 0.6 }}>
+              ({option.country})
+            </Box>
+          )}
+        </Box>
       )}
-      {error && (
-        <div className="status error" role="alert">
-          {error}
-        </div>
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label="Location"
+          placeholder="Search a location..."
+          InputProps={{
+            ...params.InputProps,
+            endAdornment: (
+              <>
+                {loading ? (
+                  <CircularProgress color="inherit" size={18} />
+                ) : null}
+                {params.InputProps.endAdornment}
+              </>
+            ),
+          }}
+          error={!!error}
+          helperText={error ? error : " "}
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              background: "#102830",
+              borderRadius: "14px",
+            },
+          }}
+        />
       )}
-      {suggestions.length > 0 && (
-        <ul id="location-suggestions" className="suggestions" role="listbox">
-          {suggestions.map((s) => (
-            <li
-              key={`${s.name}-${s.latitude}-${s.longitude}`}
-              role="option"
-              aria-selected={selected?.name === s.name}
-              onClick={() => {
-                setQuery(s.name);
-                onSelect(s);
-              }}
-            >
-              <strong>{s.name}</strong>{" "}
-              {s.country && <span className="country">({s.country})</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-      {selected && (
-        <div className="status" style={{ marginTop: "1rem" }}>
-          Selected: {selected.name} ({selected.latitude.toFixed(2)},{" "}
-          {selected.longitude.toFixed(2)})
-        </div>
-      )}
-    </div>
+    />
   );
 }
