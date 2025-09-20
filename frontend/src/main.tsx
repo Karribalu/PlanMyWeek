@@ -6,6 +6,8 @@ import CssBaseline from "@mui/material/CssBaseline";
 
 import "./index.css";
 import App from "./App.tsx";
+import { ActivityRankingsPage } from "./pages/ActivityRankingsPage";
+import { ActivityDetailsPage } from "./pages/ActivityDetailsPage";
 import { theme } from "./theme";
 
 createRoot(document.getElementById("root")!).render(
@@ -15,6 +17,8 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<App />} />
+          <Route path="/activities" element={<ActivityRankingsPage />} />
+          <Route path="/activity-details" element={<ActivityDetailsPage />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -7,17 +8,38 @@ import type { LocationSuggestion } from "../types";
 import { SEARCH_LOCATIONS } from "../graphql/queries";
 
 interface Props {
-  onSelect(loc: LocationSuggestion): void;
+  onSelect?(loc: LocationSuggestion): void;
   selected?: LocationSuggestion | null;
+  autoNavigate?: boolean;
 }
 
-export function LocationSearch({ onSelect, selected }: Props) {
+export function LocationSearch({
+  onSelect,
+  selected,
+  autoNavigate = true,
+}: Props) {
+  const navigate = useNavigate();
   const [inputValue, setInputValue] = useState(selected?.name || "");
   const [options, setOptions] = useState<LocationSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
+
+  const handleLocationSelect = (location: LocationSuggestion) => {
+    onSelect?.(location);
+    setInputValue(location.name);
+
+    if (autoNavigate) {
+      const params = new URLSearchParams({
+        location: location.name,
+        lat: location.latitude.toString(),
+        lng: location.longitude.toString(),
+        ...(location.country && { country: location.country }),
+      });
+      navigate(`/activities?${params.toString()}`);
+    }
+  };
 
   useEffect(() => {
     if (!inputValue.trim()) {
@@ -78,8 +100,7 @@ export function LocationSearch({ onSelect, selected }: Props) {
       }}
       onChange={(_, val) => {
         if (val) {
-          onSelect(val);
-          setInputValue(val.name);
+          handleLocationSelect(val);
         }
       }}
       loading={loading}
