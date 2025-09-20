@@ -15,66 +15,13 @@
  * based on weather conditions. It takes weather forecast data and determines the
  * suitability of different activities for each day in the given date range.
  */
-
-export enum ActivityKind {
-  SKIING = "SKIING",
-  SURFING = "SURFING",
-  OUTDOOR_SIGHTSEEING = "OUTDOOR_SIGHTSEEING",
-  INDOOR_SIGHTSEEING = "INDOOR_SIGHTSEEING",
-}
-
-export interface DailyWeatherData {
-  date: Date;
-  minTempC: number;
-  maxTempC: number;
-  meanTempC: number;
-  snowfallCm: number;
-  precipitationMm: number;
-  windSpeedKph: number;
-  windGustKph: number;
-  waveHeightM?: number;
-  cloudCoverPct: number;
-  sunshineHours: number;
-  humidityPct: number;
-  pressureMsl: number;
-  freezeLevelMeters?: number;
-  // Marine weather data for surfing
-  marineData?: {
-    waveHeightMax: number;
-    wavePeriod: number;
-    waveDirection: number;
-    swellWaveHeight: number;
-    swellWavePeriod: number;
-    swellWaveDirection: number;
-    windWaveHeight: number;
-    windWavePeriod: number;
-    windWaveDirection: number;
-  };
-}
-
-export interface DailyActivityScore {
-  date: Date;
-  score: number; // 0-100 scale
-  reasons: string[];
-}
-
-export interface ActivityRanking {
-  activity: ActivityKind;
-  overallScore: number; // Average of all daily scores
-  daily: DailyActivityScore[];
-}
-
-export interface RankedActivitiesResult {
-  activities: ActivityRanking[];
-  period: {
-    start: Date;
-    end: Date;
-  };
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-}
+import {
+  ActivityKind,
+  type DailyWeatherData,
+  type DailyActivityScore,
+  type ActivityRanking,
+  type RankedActivitiesResult,
+} from "../types/index.js";
 
 /**
  * Weather scoring criteria for each activity type

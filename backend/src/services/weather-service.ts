@@ -1,62 +1,9 @@
 import { fetchWeatherApi } from "openmeteo";
-
-/**
- * Interface for weather forecast request parameters
- */
-export interface WeatherForecastParams {
-  latitude: number;
-  longitude: number;
-  startDate: string; // YYYY-MM-DD format
-  endDate: string; // YYYY-MM-DD format
-  timezone?: string;
-}
-
-/**
- * Interface for daily weather data returned by the service
- */
-export interface DailyWeatherData {
-  date: Date;
-  minTempC: number;
-  maxTempC: number;
-  meanTempC: number;
-  snowfallCm: number;
-  precipitationMm: number;
-  windSpeedKph: number;
-  windGustKph: number;
-  waveHeightM?: number;
-  cloudCoverPct: number;
-  sunshineHours: number;
-  humidityPct: number;
-  pressureMsl: number;
-  freezeLevelMeters?: number;
-  // Marine weather data for surfing
-  marineData?: {
-    waveHeightMax: number;
-    wavePeriod: number;
-    waveDirection: number;
-    swellWaveHeight: number;
-    swellWavePeriod: number;
-    swellWaveDirection: number;
-    windWaveHeight: number;
-    windWavePeriod: number;
-    windWaveDirection: number;
-  };
-}
-
-/**
- * Interface for complete weather forecast response
- */
-export interface WeatherForecastResponse {
-  location: {
-    latitude: number;
-    longitude: number;
-    elevation: number;
-    timezone: string;
-  };
-  daily: DailyWeatherData[];
-  generatedAt: Date;
-  provider: string;
-}
+import type {
+  WeatherForecastParams,
+  DailyWeatherData,
+  WeatherForecastResponse,
+} from "../types/weather.js";
 
 /**
  * Fetches comprehensive weather data from Open-Meteo API

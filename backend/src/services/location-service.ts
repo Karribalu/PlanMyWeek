@@ -21,14 +21,7 @@ interface NominatimResponse {
   };
 }
 
-interface Location {
-  name: string;
-  country: string;
-  latitude: number;
-  longitude: number;
-  timezone?: string;
-  source: string;
-}
+import type { Location } from "../types/location.js";
 
 /**
  * Service for searching locations using OpenStreetMap's Nominatim API

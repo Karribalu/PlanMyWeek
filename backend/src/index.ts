@@ -24,10 +24,8 @@ if (existsSync(envFile)) {
 // Import location service AFTER environment variables are loaded
 import { getLocationService } from "./services/location-service.js";
 import { weatherService, WeatherService } from "./services/weather-service.js";
-import {
-  ActivityRankingService,
-  ActivityKind,
-} from "./services/activity-ranking-service.js";
+import { ActivityRankingService } from "./services/activity-ranking-service.js";
+import { ActivityKind } from "./types/activity.js";
 
 import { getAllGraphQLFiles } from "./services/utils.js";
 import { readFileSync } from "fs";
