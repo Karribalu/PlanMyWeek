@@ -23,6 +23,11 @@ if (existsSync(envFile)) {
 
 // Import location service AFTER environment variables are loaded
 import { getLocationService } from "./services/location-service.js";
+import { weatherService, WeatherService } from "./services/weather-service.js";
+import {
+  ActivityRankingService,
+  ActivityKind,
+} from "./services/activity-ranking-service.js";
 
 import { getAllGraphQLFiles } from "./services/utils.js";
 import { readFileSync } from "fs";
@@ -34,18 +39,8 @@ const customTypeDefs = allGraphQLFiles.map((item) => {
 
 const typeDefs = [...scalarTypeDefs, ...customTypeDefs];
 
-// Resolvers define the technique for fetching the types defined in the
-// schema. This resolver retrieves books from the "books" array above.
-const books = [
-  {
-    title: "The Awakening",
-    author: "Kate Chopin",
-  },
-  {
-    title: "City of Glass",
-    author: "Paul Auster",
-  },
-];
+// Create activity ranking service instance
+const activityRankingService = new ActivityRankingService();
 
 const resolvers = {
   Query: {
@@ -55,20 +50,188 @@ const resolvers = {
     ) => {
       return getLocationService().searchLocations(query, limit);
     },
+
+    getRankedActivities: async (
+      _: unknown,
+      {
+        location,
+        range,
+        activities,
+      }: {
+        location: {
+          name?: string;
+          latitude?: number;
+          longitude?: number;
+          timezone?: string;
+        };
+        range?: {
+          start: Date;
+          end: Date;
+        };
+        activities?: ActivityKind[];
+      }
+    ) => {
+      try {
+        console.log("getRankedActivities called with:", {
+          location,
+          range,
+          activities,
+        });
+
+        // Resolve location coordinates
+        let lat: number, lng: number, timezone: string | undefined;
+
+        if (location.latitude && location.longitude) {
+          lat = location.latitude;
+          lng = location.longitude;
+          timezone = location.timezone;
+        } else if (location.name) {
+          // Search for location by name
+          const locations = await getLocationService().searchLocations(
+            location.name,
+            1
+          );
+          if (locations.length === 0) {
+            throw new Error(`Location not found: ${location.name}`);
+          }
+          lat = locations[0].latitude;
+          lng = locations[0].longitude;
+          timezone = locations[0].timezone;
+        } else {
+          throw new Error(
+            "Either location coordinates or name must be provided"
+          );
+        }
+
+        // Set default date range if not provided (7 days starting today)
+        const startDate = range?.start || new Date();
+        const endDate =
+          range?.end ||
+          (() => {
+            const end = new Date(startDate);
+            end.setDate(startDate.getDate() + 6); // 7 days total
+            return end;
+          })();
+
+        console.log(
+          `Fetching weather for: ${lat}, ${lng} from ${
+            startDate.toISOString().split("T")[0]
+          } to ${endDate.toISOString().split("T")[0]}`
+        );
+
+        // Fetch weather data
+        const weatherData = await weatherService.getWeatherForecast({
+          latitude: lat,
+          longitude: lng,
+          startDate: WeatherService.formatDate(startDate),
+          endDate: WeatherService.formatDate(endDate),
+          timezone: timezone || "auto",
+        });
+
+        console.log(
+          `Retrieved weather data for ${weatherData.daily.length} days`
+        );
+
+        // Rank activities based on weather
+        const rankedActivities = activityRankingService.rankActivities(
+          weatherData.daily,
+          activities,
+          { latitude: lat, longitude: lng }
+        );
+
+        console.log(`Ranked ${rankedActivities.activities.length} activities`);
+
+        return rankedActivities;
+      } catch (error) {
+        console.error("Error in getRankedActivities:", error);
+        throw new Error(
+          `Failed to get ranked activities: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+      }
+    },
+
+    getWeatherForecast: async (
+      _: unknown,
+      {
+        location,
+        range,
+      }: {
+        location: {
+          name?: string;
+          latitude?: number;
+          longitude?: number;
+          timezone?: string;
+        };
+        range?: {
+          start: Date;
+          end: Date;
+        };
+      }
+    ) => {
+      try {
+        // Resolve location coordinates (similar logic as above)
+        let lat: number, lng: number, timezone: string | undefined;
+
+        if (location.latitude && location.longitude) {
+          lat = location.latitude;
+          lng = location.longitude;
+          timezone = location.timezone;
+        } else if (location.name) {
+          const locations = await getLocationService().searchLocations(
+            location.name,
+            1
+          );
+          if (locations.length === 0) {
+            throw new Error(`Location not found: ${location.name}`);
+          }
+          lat = locations[0].latitude;
+          lng = locations[0].longitude;
+          timezone = locations[0].timezone;
+        } else {
+          throw new Error(
+            "Either location coordinates or name must be provided"
+          );
+        }
+
+        // Set default date range if not provided
+        const startDate = range?.start || new Date();
+        const endDate =
+          range?.end ||
+          (() => {
+            const end = new Date(startDate);
+            end.setDate(startDate.getDate() + 6);
+            return end;
+          })();
+
+        // Fetch weather data
+        const weatherData = await weatherService.getWeatherForecast({
+          latitude: lat,
+          longitude: lng,
+          startDate: WeatherService.formatDate(startDate),
+          endDate: WeatherService.formatDate(endDate),
+          timezone: timezone || "auto",
+        });
+
+        return weatherData;
+      } catch (error) {
+        console.error("Error in getWeatherForecast:", error);
+        throw new Error(
+          `Failed to get weather forecast: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+      }
+    },
   },
 };
 
-// The ApolloServer constructor requires two parameters: your schema
-// definition and your set of resolvers.
 const server = new ApolloServer({
   typeDefs,
   resolvers,
 });
 
-// Passing an ApolloServer instance to the `startStandaloneServer` function:
-//  1. creates an Express app
-//  2. installs your ApolloServer instance as middleware
-//  3. prepares your app to handle incoming requests
 const { url } = await startStandaloneServer(server, {
   listen: { port: 8080 },
 });

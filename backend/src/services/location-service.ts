@@ -26,6 +26,7 @@ interface Location {
   country: string;
   latitude: number;
   longitude: number;
+  timezone?: string;
   source: string;
 }
 

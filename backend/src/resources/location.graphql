@@ -1,3 +1,8 @@
+scalar Date
+scalar DateTime
+scalar Latitude
+scalar Longitude
+
 input DateRangeInput {
   start: Date! # Inclusive
   end: Date! # Inclusive
@@ -17,7 +22,7 @@ type Location {
   country: String
   latitude: Latitude!
   longitude: Longitude!
-  timezone: String!
+  timezone: String
   # Confidence score or source (e.g. "geocoding") if you later integrate multiple providers.
   source: String
 }

@@ -19,4 +19,16 @@ type DailyActivityScore {
 
 type RankedActivitiesResult {
   activities: [ActivityRanking!]!
+  period: DatePeriod!
+  location: RankingLocation!
+}
+
+type DatePeriod {
+  start: Date!
+  end: Date!
+}
+
+type RankingLocation {
+  latitude: Latitude!
+  longitude: Longitude!
 }

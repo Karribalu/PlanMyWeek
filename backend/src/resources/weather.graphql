@@ -1,3 +1,8 @@
+scalar Date
+scalar DateTime
+scalar Latitude
+scalar Longitude
+
 type DailyWeather {
   date: Date!
   minTempC: Float
@@ -11,9 +16,31 @@ type DailyWeather {
   sunshineHours: Float
   humidityPct: Int
   freezeLevelMeters: Int
+  marineData: MarineWeatherData
+}
+
+type MarineWeatherData {
+  waveHeightMax: Float!
+  wavePeriod: Float!
+  waveDirection: Float!
+  swellWaveHeight: Float!
+  swellWavePeriod: Float!
+  swellWaveDirection: Float!
+  windWaveHeight: Float!
+  windWavePeriod: Float!
+  windWaveDirection: Float!
 }
 
 type WeatherForecast {
   generatedAt: DateTime!
   provider: String!
+  daily: [DailyWeather!]!
+  location: WeatherLocation!
+}
+
+type WeatherLocation {
+  latitude: Latitude!
+  longitude: Longitude!
+  elevation: Float
+  timezone: String!
 }
