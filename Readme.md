@@ -70,7 +70,7 @@ PlanMyWeek solves the problem of planning outdoor activities by analyzing weathe
 - **React 19** with TypeScript and Vite for fast development
 - **Material-UI** for consistent, accessible component library
 - **React Router** for client-side navigation
-- **Direct GraphQL queries** with manual fetch (no Apollo Client complexity)
+- **Apollo Client** for GraphQL operations (caching, error handling, devtools)
 
 **Backend** (`/backend`)
 
@@ -88,6 +88,8 @@ PlanMyWeek solves the problem of planning outdoor activities by analyzing weathe
 5. **Component-Based UI**: Reusable components with clear prop interfaces
 
 ## 🚀 Quick Start
+
+> Recent Change: The frontend now uses Apollo Client instead of manual fetch calls. Ensure `VITE_GRAPHQL_URL` is set in a `.env` file (defaults to `http://localhost:8080/`). See `frontend/APOLLO_MIGRATION.md` for details.
 
 ### Prerequisites
 

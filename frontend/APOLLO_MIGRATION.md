@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully migrated the PlanMyWeek frontend from manual fetch-based GraphQL calls to Apollo Client with dynamic environment-based URLs.
+Successfully migrated the PlanMyWeek frontend from manual fetch-based GraphQL calls to Apollo Client with dynamic environment-based URLs. All legacy `fetch` utilities have been removed; data access is now standardized through Apollo React hooks (`useQuery`, `useLazyQuery`).
 
 ## Changes Made
 
@@ -102,3 +102,38 @@ VITE_GRAPHQL_URL=http://localhost:8080/
 ```env
 VITE_GRAPHQL_URL=https://your-production-api.com/graphql
 ```
+
+## Post-Migration Verification Checklist
+
+- [x] All previous direct `fetch` calls removed
+- [x] Application renders rankings & search successfully
+- [x] Apollo DevTools shows normalized cache entries
+- [x] Location search re-queries only on changed input (debounced)
+- [x] Activity rankings query skipped when no location selected
+- [x] Environment override works via `VITE_GRAPHQL_URL`
+
+## Follow-Up Improvement Opportunities
+
+1. Type Generation
+
+- Add GraphQL Code Generator to auto-generate TypeScript types & hooks.
+
+2. Error Link / Retry Link
+
+- Centralize logging & implement exponential backoff for transient failures.
+
+3. Fragment Usage
+
+- Introduce shared fragments to reduce duplication across future queries.
+
+4. Field Policies
+
+- Configure custom merge / pagination strategies when list fields are added.
+
+5. Testing Utilities
+
+- Add a custom `renderWithApollo` helper for component tests using `MockedProvider`.
+
+## Summary
+
+Apollo Client adoption reduced boilerplate, introduced caching, and prepared the codebase for future scalability (pagination, optimistic UI, subscriptions). Further enhancements (type generation & custom links) can be layered in incrementally without refactoring existing components.

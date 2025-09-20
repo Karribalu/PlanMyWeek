@@ -1,6 +1,6 @@
 # PlanMyWeek Frontend
 
-A modern React application built with TypeScript, Vite, and Material-UI that provides an intuitive interface for weather-based activity planning.
+A modern React application built with TypeScript, Vite, Material-UI, and Apollo Client that provides an intuitive interface for weather-based activity planning.
 
 ## 🏗️ Architecture Overview
 
@@ -9,7 +9,7 @@ The frontend follows modern React patterns with clean component architecture:
 ```
 frontend/
 ├── src/
-│   ├── main.tsx                 # App entry point with routing
+│   ├── main.tsx                 # App entry point with routing & ApolloProvider
 │   ├── App.tsx                  # Main app component
 │   ├── types.ts                 # Shared TypeScript interfaces
 │   ├── theme.ts                 # Material-UI theme configuration
@@ -19,8 +19,10 @@ frontend/
 │   ├── pages/                   # Route-level components
 │   │   ├── ActivityRankingsPage.tsx  # Main rankings view
 │   │   └── ActivityDetailsPage.tsx   # Detailed activity breakdown
-│   ├── graphql/                 # GraphQL query definitions
-│   │   └── queries.ts           # Centralized GraphQL queries
+│   ├── graphql/                 # GraphQL operations (queries & fragments)
+│   │   └── queries.ts           # Centralized GraphQL operations (gql)
+│   ├── apollo/                  # Apollo Client setup
+│   │   └── client.ts            # Apollo client instance & cache config
 │   └── assets/                  # Static assets
 └── dist/                        # Build output
 ```
@@ -32,7 +34,7 @@ frontend/
 - **Vite**: Lightning-fast development server and build tool
 - **Material-UI v6**: Comprehensive component library with consistent design
 - **React Router v7**: Client-side routing for SPA navigation
-- **Direct GraphQL**: Manual fetch calls for GraphQL queries (no Apollo Client)
+- **Apollo Client**: Typed GraphQL queries with caching, error handling & devtools
 
 ## 🎯 Key Features
 
@@ -137,47 +139,108 @@ interface Props {
 **ActivityRankingsPage**: Main application view combining location search and activity rankings
 **ActivityDetailsPage**: Detailed view for specific activity with historical data and trends
 
-## 📡 GraphQL Integration
+### GraphQL Integration (Apollo Client)
 
-### Query Management
+The frontend now uses **Apollo Client** for all GraphQL communication, replacing manual fetch logic.
 
-The frontend uses manual GraphQL queries with fetch API rather than Apollo Client for simplicity:
+#### Apollo Client Setup
+
+`src/apollo/client.ts`:
 
 ```typescript
-// Direct GraphQL query execution
-const response = await fetch("http://localhost:8080/", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    query: SEARCH_LOCATIONS,
-    variables: { q: inputValue },
-  }),
+import { ApolloClient, InMemoryCache, createHttpLink } from "@apollo/client";
+
+const httpLink = createHttpLink({ uri: import.meta.env.VITE_GRAPHQL_URL });
+
+export const apolloClient = new ApolloClient({
+  link: httpLink,
+  cache: new InMemoryCache(),
 });
 ```
 
-### Query Definitions
+`src/main.tsx` wraps the app with `ApolloProvider` so hooks like `useQuery` are available across the component tree.
 
-Centralized in `src/graphql/queries.ts`:
+#### Defining Operations
+
+`src/graphql/queries.ts` uses `gql` tagged templates:
 
 ```typescript
-export const SEARCH_LOCATIONS = `query Search($q:String!){
-  searchLocations(query:$q){ name country latitude longitude timezone }
-}`;
+import { gql } from "@apollo/client";
 
-export const GET_RANKED_ACTIVITIES = `query Rank($lat:Latitude!,$lng:Longitude!){
-  getRankedActivities(location:{latitude:$lat,longitude:$lng}){
-    period{ start end }
-    activities{ activity overallScore daily{ date score reasons } }
+export const SEARCH_LOCATIONS = gql`
+  query SearchLocations($query: String!, $limit: Int) {
+    searchLocations(query: $query, limit: $limit) {
+      name
+      country
+      latitude
+      longitude
+      timezone
+      source
+    }
   }
-}`;
+`;
+
+export const GET_RANKED_ACTIVITIES = gql`
+  query GetRankedActivities($latitude: Latitude!, $longitude: Longitude!) {
+    getRankedActivities(
+      location: { latitude: $latitude, longitude: $longitude }
+    ) {
+      period {
+        start
+        end
+      }
+      activities {
+        activity
+        overallScore
+        daily {
+          date
+          score
+          reasons
+        }
+      }
+    }
+  }
+`;
 ```
 
-### Benefits of Direct GraphQL Approach
+#### Using Queries in Components
 
-- **Simplicity**: No additional client library complexity
-- **Transparency**: Clear understanding of network requests
-- **Bundle Size**: Smaller JavaScript bundle
-- **Control**: Full control over request/response handling
+```tsx
+import { useQuery } from "@apollo/client";
+import { GET_RANKED_ACTIVITIES } from "../graphql/queries";
+
+const { data, loading, error } = useQuery(GET_RANKED_ACTIVITIES, {
+  variables: { latitude: 40.7128, longitude: -74.006 },
+  skip: !selectedLocation,
+});
+```
+
+For on-demand queries (e.g. typeahead search) `useLazyQuery` is used:
+
+```tsx
+const [runSearch, { data, loading, error }] = useLazyQuery(SEARCH_LOCATIONS);
+
+// inside debounced effect
+runSearch({ variables: { query: value, limit: 5 } });
+```
+
+#### Benefits of Apollo Client
+
+- **Caching**: Normalized in-memory cache reduces redundant requests
+- **Declarative Data**: Hooks manage loading & error lifecycle
+- **DevTools Support**: Inspect queries, cache & performance
+- **Environment Flexibility**: Endpoint configured via `VITE_GRAPHQL_URL`
+- **Extensibility**: Easy to add pagination, reactive variables, fragments
+
+#### Environment Variable
+
+Configure the GraphQL endpoint in an `.env` file:
+
+```
+VITE_GRAPHQL_URL=http://localhost:8080/
+```
+
+For production deployments override with the deployed API URL.
 
 ## 🎨 Styling & Theming
 
@@ -226,34 +289,19 @@ Strict TypeScript setup with comprehensive type checking:
 
 ### Type Definitions
 
-Shared types in `src/types.ts`:
-
-```typescript
-export interface LocationSuggestion {
-  name: string;
-  country?: string;
-  latitude: number;
-  longitude: number;
-  timezone?: string;
-}
-
-export interface ActivityRanking {
-  activity: ActivityKind;
-  overallScore: number;
-  daily: DailyActivityScore[];
-}
-```
+Shared types remain in `src/types.ts`. Optionally, future improvement could generate TypeScript types automatically using a GraphQL code generator (e.g. `@graphql-codegen/cli`) to ensure strong coupling with the schema. Currently we hand-maintain the minimal interfaces required by UI components.
 
 ### GraphQL Type Integration
 
-- Manual type definitions matching GraphQL schema
-- Runtime type validation for API responses
-- IntelliSense support for all GraphQL operations
+- Apollo Client returns typed data when paired with generated types (future enhancement)
+- Manual interfaces align with GraphQL schema enums & object shapes
+- Stronger type-safety can be added with code generation in a follow-up iteration
 
 ## 🚀 Performance Optimizations
 
 ### Implemented Optimizations
 
+- **Apollo Caching**: Eliminates duplicate network requests
 - **Debounced Search**: Reduces API calls during typing
 - **Vite HMR**: Fast development iteration
 - **Component Lazy Loading**: Route-based code splitting
@@ -358,4 +406,4 @@ xl: 1536px  # Large desktop
 - **Adaptive Layouts**: Grid layouts that stack on mobile
 - **Performance**: Optimized bundle size for mobile networks
 
-This frontend demonstrates modern React development practices with emphasis on type safety, performance, and maintainable architecture patterns.
+This frontend demonstrates modern React development practices with emphasis on type safety, performance, Apollo-powered data management, and maintainable architecture patterns.

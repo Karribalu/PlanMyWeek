@@ -17,8 +17,9 @@ PlanMyWeek is a weather-based activity ranking system with a React frontend and 
 ### Frontend (`/frontend`)
 
 - **Vite + React + TypeScript** setup with ESLint flat config
-- **Direct GraphQL queries**: Manual fetch calls to `http://localhost:8080/` (no Apollo Client yet)
-- **Debounced search**: 300ms delay for location typeahead in `App.tsx`
+- **Apollo Client**: Centralized GraphQL client (`src/apollo/client.ts`) with `useQuery` / `useLazyQuery` hooks
+- **Environment-based endpoint**: `VITE_GRAPHQL_URL` controls GraphQL URL
+- **Debounced search**: 300ms delay for location typeahead leveraging `useLazyQuery`
 
 ## Critical Patterns
 
@@ -68,7 +69,8 @@ cd frontend && npm run dev  # Vite dev server with HMR
 - `backend/src/index.ts`: Main server setup, mock data, and location resolver
 - `backend/src/resources/schema.graphql`: Core GraphQL API including `getRankedActivities`
 - `backend/src/services/utils.ts`: Schema file discovery logic for dev vs production
-- `frontend/src/App.tsx`: Location search UI with manual GraphQL queries
+- `frontend/src/App.tsx`: High-level layout; Apollo hooks used in pages/components
+- `frontend/src/apollo/client.ts`: Apollo Client configuration
 
 ## Conventions
 

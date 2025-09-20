@@ -2,6 +2,8 @@
 
 A GraphQL Apollo Server that provides weather-based activity rankings to help users plan their week. Built with TypeScript, Apollo Server, and the Open-Meteo weather API.
 
+> Frontend Integration: The React client now uses Apollo Client for all GraphQL operations (caching, error handling, devtools). No changes required server-side—schema and resolvers remain fully compatible.
+
 ## 🏗️ Architecture Overview
 
 The backend follows a **schema-first GraphQL approach** with modular architecture:
